@@ -1,0 +1,63 @@
+# DigitalOcean App Platform — Monorepo Configuration
+# This file defines two components:
+#   1. stratai-web  — Static site (React frontend)
+#   2. stratai-api  — Web service (Express API)
+#
+# To apply: DO Dashboard → Apps → your app → Settings → App Spec → Edit → paste this
+# Or use doctl: doctl apps update <app-id> --spec .do/app.yaml
+
+name: stratai
+region: fra
+
+services:
+  - name: stratai-api
+    github:
+      repo: AlchemicFlare/stratAI
+      branch: main
+      deploy_on_push: true
+    source_dir: /api
+    build_command: npm install && npm run build
+    run_command: node dist/server.js
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    http_port: 3000
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 10
+      period_seconds: 30
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+        value: "${pgdb.DATABASE_URL}"
+      - key: JWT_ACCESS_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: "REPLACE_WITH_64_CHAR_RANDOM_STRING"
+      - key: JWT_REFRESH_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: "REPLACE_WITH_DIFFERENT_64_CHAR_RANDOM_STRING"
+      - key: CORS_ORIGIN
+        scope: RUN_TIME
+        value: "${stratai-web.PUBLIC_URL}"
+      - key: NODE_ENV
+        scope: RUN_TIME
+        value: "production"
+
+static_sites:
+  - name: stratai-web
+    github:
+      repo: AlchemicFlare/stratAI
+      branch: main
+      deploy_on_push: true
+    source_dir: /
+    build_command: npm run build
+    output_dir: dist
+
+databases:
+  - name: pgdb
+    engine: PG
+    production: true
+    cluster_name: pgdb
